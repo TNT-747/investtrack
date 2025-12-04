@@ -1,10 +1,9 @@
-## README.md — InvestTrack
 # InvestTrack – Financial Portfolio Management Platform
 
 A Microservices-Based Mini Project by:
 Kassimi Abderrahmane & Ziyad Boussouga
 
-#1. Overview
+# 1. Overview
 
 InvestTrack is a financial portfolio management system built using a Microservices architecture with Spring Cloud and a modern React.js frontend.
 
