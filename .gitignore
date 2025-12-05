@@ -1,0 +1,39 @@
+# Node modules (React)
+node_modules/
+frontend/investtrack-frontend/node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Java build
+target/
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.class
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Docker
+docker/*.log
+docker/tmp/
+
+# Sensitive files
+secrets/
