@@ -1,0 +1,61 @@
+name: Deploy Services
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Build & Push Portfolio Service
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: back-end/portfolio-service/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/portfolio-service:latest
+
+      - name: Build & Push Market Service
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: back-end/market-service/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/market-service:latest
+
+      - name: Build & Push API Gateway
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: back-end/api-gateway/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/api-gateway:latest
+
+      - name: Build & Push Interface API
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: back-end/interface-api/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/interface-api:latest
+
+      - name: Build & Push React Frontend
+        uses: docker/build-push-action@v4
+        with:
+          context: frontend
+          file: docker/front-end/Dockerfile.react
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/front-end:latest
