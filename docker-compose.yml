@@ -35,7 +35,7 @@ services:
       dockerfile: docker/back-end/Dockerfile.gateway
     container_name: api-gateway
     ports:
-      - "8888:8888" # Adjust if your Gateway runs on 8080 or 9090
+      - "8080:8888" # Adjust if your Gateway runs on 8080 or 9090
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     depends_on:
@@ -85,3 +85,4 @@ services:
 networks:
   invest-net:
     driver: bridge
+
