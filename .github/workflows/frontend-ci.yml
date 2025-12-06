@@ -20,22 +20,17 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-
-      - name: Cache node modules
-        uses: actions/cache@v4
-        with:
-          path: front-end/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('front-end/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          cache-dependency-path: front-end/package-lock.json
 
       - name: Install dependencies
         working-directory: front-end/
+        # npm ci is faster and safer for CI environments
         run: npm ci
 
       - name: Run front-end tests
         working-directory: front-end/
-        run: npm test -- --watchAll=false || true
+        # Removed '|| true' so the build actually FAILS if tests fail
+        run: npm test -- --watchAll=false
 
       - name: Build front-end
         working-directory: front-end/
@@ -45,4 +40,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: front-end-build
-          path: front-end/build
+          # FIXED: Vite outputs to 'dist' by default, not 'build'
+          path: front-end/dist
