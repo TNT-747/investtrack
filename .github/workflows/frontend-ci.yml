@@ -1,44 +1,49 @@
-name: front-end CI
+name: Frontend CI
 
 on:
   push:
+    branches: [ "main", "master" ]
     paths:
       - 'front-end/**'
   pull_request:
+    branches: [ "main", "master" ]
     paths:
       - 'front-end/**'
 
 jobs:
-  build:
+  frontend-check:
+    name: Validate React Frontend
     runs-on: ubuntu-latest
+
+    # Sets the default directory for all steps to 'front-end'
+    defaults:
+      run:
+        working-directory: ./front-end
+
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '18' # Node 18 or 20 is recommended for modern React
           cache: 'npm'
-          cache-dependency-path: front-end/package-lock.json
+          # Tells the cache action specifically where to look for the lock file
+          cache-dependency-path: './front-end/package-lock.json'
 
-      - name: Install dependencies
-        working-directory: front-end/
-        # npm ci is faster and safer for CI environments
+      # 'npm ci' is faster and more reliable than 'npm install' for CI environments
+      - name: Install Dependencies
         run: npm ci
 
-      - name: Run front-end tests
-        working-directory: front-end/
-        # Removed '|| true' so the build actually FAILS if tests fail
-        run: npm test -- --watchAll=false
+      # Runs tests. 
+      # CI=true is CRITICAL: it forces the test runner (Jest) to run once and exit, 
+      # instead of entering "watch mode" which would hang the pipeline forever.
+      - name: Run Unit Tests
+        run: npm test
+        env:
+          CI: true
 
-      - name: Build front-end
-        working-directory: front-end/
+      # Verifies that the project builds for production without crashing
+      - name: Build Project
         run: npm run build
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: front-end-build
-          # FIXED: Vite outputs to 'dist' by default, not 'build'
-          path: front-end/dist
