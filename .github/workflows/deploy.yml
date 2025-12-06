@@ -88,3 +88,4 @@ jobs:
           file: ./docker/front-end/Dockerfile.react
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest
+
