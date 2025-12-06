@@ -33,22 +33,38 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build all back-end microservices (run tests)
+      - name: Build back-end microservices
         working-directory: ./back-end
         run: |
-          # if you have a single parent pom: mvn -B clean verify
-          # otherwise build each module/service separately:
           set -e
-          for dir in portfolio-service market-service interface-api api-gateway config-server eureka-server; do
-            if [ -f "$dir/pom.xml" ]; then
-              echo ">> Building $dir"
+          
+          echo "---------------------------------------"
+          echo "🚀 STEP 1: Building Shared Library"
+          echo "---------------------------------------"
+          # We use 'install' here so the .jar is saved to the local ~/.m2 cache.
+          # Without this, market-service & portfolio-service will fail to find the dependency.
+          if [ -d "interface-api" ]; then
+             mvn -B -f interface-api/pom.xml clean install
+          else
+             echo "⚠️ interface-api folder not found, skipping..."
+          fi
+
+          echo "---------------------------------------"
+          echo "🚀 STEP 2: Building Microservices"
+          echo "---------------------------------------"
+          # We loop through all directories that have a pom.xml
+          # We EXCLUDE interface-api (already built) and the current dir (.)
+          find . -maxdepth 2 -name "pom.xml" -printf '%h\n' | sort | while read dir; do
+            if [ "$dir" != "." ] && [ "$dir" != "./interface-api" ]; then
+              echo ">> Building Service: $dir"
+              # 'verify' runs tests and checks quality, but doesn't need to install to cache
               mvn -B -f "$dir/pom.xml" clean verify
             fi
           done
 
-      - name: Archive test reports (if any)
+      - name: Archive test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: back-end-test-results
-          path: back-end/**/target/surefire-reports || true
+          path: back-end/**/target/surefire-reports
