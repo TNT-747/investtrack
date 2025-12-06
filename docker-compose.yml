@@ -1,92 +1,87 @@
-version: "3.8"
+version: '3.8'
 
 services:
-
-  # ============================
-  # EUREKA SERVER
-  # ============================
-  eureka:
-    image: tnt474/eureka-server:latest
-    restart: always
-    ports:
-      - "8761:8761"
-
-  # ============================
-  # CONFIG SERVER
-  # ============================
-  config:
-    image: tnt474/config-server:latest
-    restart: always
+  # 1. Configuration Server
+  config-server:
+    build:
+      context: .
+      dockerfile: docker/back-end/Dockerfile.config
+    container_name: config-server
     ports:
       - "8888:8888"
-    depends_on:
-      - eureka
+    networks:
+      - invest-net
 
-  # ============================
-  # API GATEWAY
-  # ============================
+  # 2. Service Discovery (Eureka)
+  eureka-server:
+    build:
+      context: .
+      dockerfile: docker/back-end/Dockerfile.eureka
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+    depends_on:
+      - config-server
+    networks:
+      - invest-net
+
+  # 3. API Gateway
   api-gateway:
-    image: tnt474/api-gateway:latest
-    restart: always
+    build:
+      context: .
+      dockerfile: docker/back-end/Dockerfile.gateway
+    container_name: api-gateway
     ports:
-      - "8080:8080"
-    depends_on:
-      - eureka
-      - config
+      - "8888:8888" # Adjust if your Gateway runs on 8080 or 9090
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - EUREKA_SERVER_URL=http://eureka:8761/eureka
-      - CONFIG_SERVER_URL=http://config:8888
-
-  # ============================
-  # PORTFOLIO SERVICE
-  # ============================
-  portfolio-service:
-    image: tnt474/portfolio-service:latest
-    restart: always
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - EUREKA_SERVER_URL=http://eureka:8761/eureka
-      - CONFIG_SERVER_URL=http://config:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     depends_on:
-      - eureka
-      - config
+      - eureka-server
+    networks:
+      - invest-net
 
-  # ============================
-  # MARKET SERVICE
-  # ============================
+  # 4. Market Service
   market-service:
-    image: tnt474/market-service:latest
-    restart: always
+    build:
+      context: .
+      dockerfile: docker/back-end/Dockerfile.market
+    container_name: market-service
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - EUREKA_SERVER_URL=http://eureka:8761/eureka
-      - CONFIG_SERVER_URL=http://config:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     depends_on:
-      - eureka
-      - config
+      - eureka-server
+    networks:
+      - invest-net
 
-  # ============================
-  # INTERFACE API
-  # ============================
-  interface-api:
-    image: tnt474/interface-api:latest
-    restart: always
+  # 5. Portfolio Service
+  portfolio-service:
+    build:
+      context: .
+      dockerfile: docker/back-end/Dockerfile.portfolio
+    container_name: portfolio-service
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - EUREKA_SERVER_URL=http://eureka:8761/eureka
-      - CONFIG_SERVER_URL=http://config:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     depends_on:
-      - portfolio-service
-      - market-service
+      - eureka-server
+    networks:
+      - invest-net
 
-  # ============================
-  # FRONTEND (React)
-  # ============================
+  # 6. Frontend (React)
   frontend:
-    image: tnt474/frontend:latest
-    restart: always
+    build:
+      context: .
+      dockerfile: docker/front-end/Dockerfile.react
+    container_name: investtrack-frontend
     ports:
-      - "3000:80"
+      - "80:80"
     depends_on:
       - api-gateway
+    networks:
+      - invest-net
+
+networks:
+  invest-net:
+    driver: bridge
