@@ -1,0 +1,46 @@
+version: "3.8"
+services:
+  eureka:
+    image: tnt474/eureka-server:latest
+    restart: always
+    ports: ["8761:8761"]
+
+  config:
+    image: tnt474/config-server:latest
+    restart: always
+    ports: ["8888:8888"]
+
+  api-gateway:
+    image: tnt474/api-gateway:latest
+    restart: always
+    ports: ["8080:8080"]
+    depends_on:
+      - eureka
+      - config
+
+  portfolio-service:
+    image: tnt474/portfolio-service:latest
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    depends_on:
+      - eureka
+      - config
+
+  market-service:
+    image: tnt474/market-service:latest
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    depends_on:
+      - eureka
+      - config
+
+  interface-api:
+    image: tnt474/interface-api:latest
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    depends_on:
+      - portfolio-service
+      - market-service
