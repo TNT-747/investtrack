@@ -7,22 +7,32 @@ on:
       - 'back-end/**'
       - 'front-end/**'
       - 'docker/**'
-  workflow_dispatch: # Allows you to trigger this manually from GitHub UI
+  workflow_dispatch:
 
 env:
-  # Replace 'investtrack' with your preferred image prefix if different
-  IMAGE_PREFIX: investtrack 
+  IMAGE_PREFIX: investtrack
 
 jobs:
   # ------------------------------------------------------------------
-  # JOB 1: Build and Push Backend Microservices
+  # JOB 1: Backend Services
   # ------------------------------------------------------------------
   backend-build-push:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [config-server, eureka-server, api-gateway, market-service, portfolio-service]
-    
+        # We explicitly map the service folder name to the Dockerfile name here
+        include:
+          - service: config-server
+            dockerfile: Dockerfile.config
+          - service: eureka-server
+            dockerfile: Dockerfile.eureka
+          - service: api-gateway
+            dockerfile: Dockerfile.gateway
+          - service: market-service
+            dockerfile: Dockerfile.market
+          - service: portfolio-service
+            dockerfile: Dockerfile.portfolio
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,8 +44,6 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      # We use 'install' instead of 'package' because 'interface-api' 
-      # likely needs to be available in the local .m2 repo for other services to use.
       - name: Build Backend Artifacts
         run: mvn clean install -DskipTests -B
         working-directory: ./back-end
@@ -49,40 +57,23 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          # Context matches the specific service folder
-          context: ./back-end/${{ matrix.service }}
-          # IMPORTANT: Check if your Dockerfiles are inside the service folder 
-          # OR inside the separate 'docker' folder shown in your screenshot.
-          # If inside the 'docker' folder, change file to: ./docker/back-end/${{ matrix.service }}/Dockerfile
-          file: ./back-end/${{ matrix.service }}/Dockerfile 
+          # Context is the root so we can access compiled JARs in back-end/
+          context: .
+          # Points to your specific file structure: docker/back-end/Dockerfile.xxx
+          file: ./docker/back-end/${{ matrix.dockerfile }}
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
 
   # ------------------------------------------------------------------
-  # JOB 2: Build and Push Frontend
+  # JOB 2: Frontend
   # ------------------------------------------------------------------
   frontend-build-push:
     runs-on: ubuntu-latest
-    needs: backend-build-push # Optional: wait for backend to finish first
+    needs: backend-build-push
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: './front-end/package-lock.json'
-
-      - name: Install Dependencies
-        run: npm ci
-        working-directory: ./front-end
-
-      - name: Build React App
-        run: npm run build
-        working-directory: ./front-end
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -93,8 +84,7 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./front-end
-          # Assumes Dockerfile is in front-end root or docker/front-end folder
-          file: ./front-end/Dockerfile 
+          context: .
+          file: ./docker/front-end/Dockerfile.react
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest
