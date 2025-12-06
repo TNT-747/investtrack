@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy package.json from the front-end folder
 COPY front-end/package*.json ./
 
-# Install dependencies
-RUN npm ci
+# CHANGE: Use 'npm install' instead of 'npm ci' to fix the missing lockfile error
+RUN npm install
 
 # Copy the rest of the frontend source code
 COPY front-end/ ./
