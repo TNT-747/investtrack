@@ -1,14 +1,10 @@
-# docker/backend/Dockerfile.interface
+FROM eclipse-temurin:17-jre-alpine
 
-FROM maven:3.9.4-eclipse-temurin-17 AS builder
-WORKDIR /build
-COPY backend/interface-api/pom.xml .
-COPY backend/interface-api/src ./src
-RUN mvn -B -DskipTests package
-
-FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
-COPY --from=builder /build/target/*.jar app.jar
+VOLUME /tmp
 
-EXPOSE 8083
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ARG JAR_FILE=back-end/market-service/target/*.jar
+
+COPY ${JAR_FILE} app.jar
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
