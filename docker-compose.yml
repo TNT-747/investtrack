@@ -1,46 +1,92 @@
 version: "3.8"
+
 services:
+
+  # ============================
+  # EUREKA SERVER
+  # ============================
   eureka:
     image: tnt474/eureka-server:latest
     restart: always
-    ports: ["8761:8761"]
+    ports:
+      - "8761:8761"
 
+  # ============================
+  # CONFIG SERVER
+  # ============================
   config:
     image: tnt474/config-server:latest
     restart: always
-    ports: ["8888:8888"]
+    ports:
+      - "8888:8888"
+    depends_on:
+      - eureka
 
+  # ============================
+  # API GATEWAY
+  # ============================
   api-gateway:
     image: tnt474/api-gateway:latest
     restart: always
-    ports: ["8080:8080"]
+    ports:
+      - "8080:8080"
     depends_on:
       - eureka
       - config
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_SERVER_URL=http://eureka:8761/eureka
+      - CONFIG_SERVER_URL=http://config:8888
 
+  # ============================
+  # PORTFOLIO SERVICE
+  # ============================
   portfolio-service:
     image: tnt474/portfolio-service:latest
     restart: always
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_SERVER_URL=http://eureka:8761/eureka
+      - CONFIG_SERVER_URL=http://config:8888
     depends_on:
       - eureka
       - config
 
+  # ============================
+  # MARKET SERVICE
+  # ============================
   market-service:
     image: tnt474/market-service:latest
     restart: always
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_SERVER_URL=http://eureka:8761/eureka
+      - CONFIG_SERVER_URL=http://config:8888
     depends_on:
       - eureka
       - config
 
+  # ============================
+  # INTERFACE API
+  # ============================
   interface-api:
     image: tnt474/interface-api:latest
     restart: always
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_SERVER_URL=http://eureka:8761/eureka
+      - CONFIG_SERVER_URL=http://config:8888
     depends_on:
       - portfolio-service
       - market-service
+
+  # ============================
+  # FRONTEND (React)
+  # ============================
+  frontend:
+    image: tnt474/frontend:latest
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
