@@ -1,70 +1,36 @@
-name: back-end CI
+name: Backend CI
 
 on:
   push:
+    branches: [ "main", "master" ]
     paths:
       - 'back-end/**'
   pull_request:
+    branches: [ "main", "master" ]
     paths:
       - 'back-end/**'
 
 jobs:
   build-and-test:
+    name: Build and Test Microservices
     runs-on: ubuntu-latest
-    env:
-      MAVEN_OPTS: -DskipTests=false
 
     steps:
-      - name: Checkout repo
+      # 1. Checkout the repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Setup Java Environment (Using Java 17 for Spring Cloud)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
           java-version: '17'
-          cache: 'maven'
+          distribution: 'temurin'
+          cache: 'maven' # Caches dependencies to speed up future builds
 
-      - name: Cache Maven .m2
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-
-      - name: Build back-end microservices
+      # 3. Build the application and run tests
+      # We use 'verify' to run both unit tests and integration tests
+      # We use -B (Batch mode) to reduce log clutter
+      - name: Build with Maven
+        run: mvn clean verify -B
         working-directory: ./back-end
-        run: |
-          set -e
-          
-          echo "---------------------------------------"
-          echo "🚀 STEP 1: Building Shared Library"
-          echo "---------------------------------------"
-          # We use 'install' here so the .jar is saved to the local ~/.m2 cache.
-          # Without this, market-service & portfolio-service will fail to find the dependency.
-          if [ -d "interface-api" ]; then
-             mvn -B -f interface-api/pom.xml clean install
-          else
-             echo "⚠️ interface-api folder not found, skipping..."
-          fi
-
-          echo "---------------------------------------"
-          echo "🚀 STEP 2: Building Microservices"
-          echo "---------------------------------------"
-          # We loop through all directories that have a pom.xml
-          # We EXCLUDE interface-api (already built) and the current dir (.)
-          find . -maxdepth 2 -name "pom.xml" -printf '%h\n' | sort | while read dir; do
-            if [ "$dir" != "." ] && [ "$dir" != "./interface-api" ]; then
-              echo ">> Building Service: $dir"
-              # 'verify' runs tests and checks quality, but doesn't need to install to cache
-              mvn -B -f "$dir/pom.xml" clean verify
-            fi
-          done
-
-      - name: Archive test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: back-end-test-results
-          path: back-end/**/target/surefire-reports
