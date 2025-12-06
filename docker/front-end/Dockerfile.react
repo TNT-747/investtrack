@@ -1,28 +1,23 @@
-# CHANGE: Switch from node:18-alpine to node:20-alpine
+# Stage 1: Build the React application
 FROM node:20-alpine as build
 
 WORKDIR /app
 
-# Copy package.json from the front-end folder
 COPY front-end/package*.json ./
 
-# Install dependencies (using npm install as discussed)
 RUN npm install
 
-# Copy the rest of the frontend source code
 COPY front-end/ ./
 
-# Build for production
 RUN npm run build
 
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-# Copy the build output from Stage 1 to Nginx html folder
-COPY --from=build /app/build /usr/share/nginx/html
+# CHANGE: Copy from /app/dist instead of /app/build
+# Vite creates a 'dist' folder, not 'build'
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Expose port 80
 EXPOSE 80
 
-# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
