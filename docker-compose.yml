@@ -74,7 +74,7 @@ services:
     build:
       context: .
       dockerfile: docker/front-end/Dockerfile.react
-    container_name: investtrack-frontend
+    container_name: front-end
     ports:
       - "3000:80"
     depends_on:
@@ -85,5 +85,6 @@ services:
 networks:
   invest-net:
     driver: bridge
+
 
 
