@@ -1,12 +1,12 @@
-# Stage 1: Build the React application
-FROM node:18-alpine as build
+# CHANGE: Switch from node:18-alpine to node:20-alpine
+FROM node:20-alpine as build
 
 WORKDIR /app
 
 # Copy package.json from the front-end folder
 COPY front-end/package*.json ./
 
-# CHANGE: Use 'npm install' instead of 'npm ci' to fix the missing lockfile error
+# Install dependencies (using npm install as discussed)
 RUN npm install
 
 # Copy the rest of the frontend source code
