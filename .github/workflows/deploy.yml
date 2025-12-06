@@ -1,131 +1,100 @@
-name: CD - Build / Push / Deploy
+name: Build and Push Docker Images
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main", "master" ]
+    paths:
+      - 'back-end/**'
+      - 'front-end/**'
+      - 'docker/**'
+  workflow_dispatch: # Allows you to trigger this manually from GitHub UI
 
 env:
-  REGISTRY: docker.io
-  IMAGE_NAMESPACE: ${{ secrets.DOCKER_USER }}
+  # Replace 'investtrack' with your preferred image prefix if different
+  IMAGE_PREFIX: investtrack 
 
 jobs:
-  build-and-push:
+  # ------------------------------------------------------------------
+  # JOB 1: Build and Push Backend Microservices
+  # ------------------------------------------------------------------
+  backend-build-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [config-server, eureka-server, api-gateway, market-service, portfolio-service]
+    
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      # We use 'install' instead of 'package' because 'interface-api' 
+      # likely needs to be available in the local .m2 repo for other services to use.
+      - name: Build Backend Artifacts
+        run: mvn clean install -DskipTests -B
+        working-directory: ./back-end
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKER_USER }}
-          password: ${{ secrets.DOCKER_PASS }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Build & push each back-end image
-      - name: Build & push portfolio-service image
-        uses: docker/build-push-action@v4
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
         with:
-          context: ./back-end/portfolio-service
-          file: ./back-end/portfolio-service/Dockerfile
+          # Context matches the specific service folder
+          context: ./back-end/${{ matrix.service }}
+          # IMPORTANT: Check if your Dockerfiles are inside the service folder 
+          # OR inside the separate 'docker' folder shown in your screenshot.
+          # If inside the 'docker' folder, change file to: ./docker/back-end/${{ matrix.service }}/Dockerfile
+          file: ./back-end/${{ matrix.service }}/Dockerfile 
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/portfolio-service:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/portfolio-service:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
 
-      - name: Build & push market-service image
-        uses: docker/build-push-action@v4
+  # ------------------------------------------------------------------
+  # JOB 2: Build and Push Frontend
+  # ------------------------------------------------------------------
+  frontend-build-push:
+    runs-on: ubuntu-latest
+    needs: backend-build-push # Optional: wait for backend to finish first
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          context: ./back-end/market-service
-          file: ./back-end/market-service/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/market-service:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/market-service:${{ github.sha }}
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './front-end/package-lock.json'
 
-      - name: Build & push interface-api image
-        uses: docker/build-push-action@v4
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ./front-end
+
+      - name: Build React App
+        run: npm run build
+        working-directory: ./front-end
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          context: ./back-end/interface-api
-          file: ./back-end/interface-api/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/interface-api:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/interface-api:${{ github.sha }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & push api-gateway image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./back-end/api-gateway
-          file: ./back-end/api-gateway/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/api-gateway:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/api-gateway:${{ github.sha }}
-
-      - name: Build & push config-server image (optional)
-        if: ${{ always() }}
-        uses: docker/build-push-action@v4
-        with:
-          context: ./back-end/config-server
-          file: ./back-end/config-server/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/config-server:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/config-server:${{ github.sha }}
-
-      - name: Build & push eureka-server image (optional)
-        if: ${{ always() }}
-        uses: docker/build-push-action@v4
-        with:
-          context: ./back-end/eureka-server
-          file: ./back-end/eureka-server/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/eureka-server:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/eureka-server:${{ github.sha }}
-
-      - name: Build & push front-end image
-        uses: docker/build-push-action@v4
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
         with:
           context: ./front-end
-          file: ./docker/front-end/Dockerfile.react
+          # Assumes Dockerfile is in front-end root or docker/front-end folder
+          file: ./front-end/Dockerfile 
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}:${{ github.sha }}
-
-      - name: Notify success
-        run: echo "Images built and pushed."
-
-  deploy-to-server:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: ${{ secrets.SSH_PRIVATE_KEY != '' }}
-    steps:
-      - name: Wait for images to be available (optional)
-        run: sleep 5
-
-      - name: Copy deploy script to server and run
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || '22' }}
-          script: |
-            set -e
-            cd ${{ secrets.DEPLOY_PATH || '/home/' + secrets.SSH_USER + '/investtrack-deploy' }}
-            # Pull latest images
-            docker-compose pull
-            # Recreate containers with new images
-            docker-compose up -d --remove-orphans
-            # Optional: prune unused images
-            docker image prune -f
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest
