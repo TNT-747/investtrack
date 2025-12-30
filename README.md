@@ -104,6 +104,7 @@ graph TB
 cd ..\investtrack-config
 git log --oneline
 cd ..\investtrack
+
 ```
 
 3. **Start all services**
