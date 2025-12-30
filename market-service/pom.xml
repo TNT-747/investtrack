@@ -19,7 +19,7 @@
     <description>Asset Management Service for InvestTrack</description>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>17</java.version>
         <spring-cloud.version>2023.0.0</spring-cloud.version>
     </properties>
 
