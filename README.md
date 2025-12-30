@@ -97,9 +97,7 @@ graph TB
 ### Installation
 
 1. **Clone the repository**
-```powershell
-cd c:\Users\Kassimi\.gemini\antigravity\scratch\investtrack
-```
+
 
 2. **Verify configuration repository**
 ```powershell
